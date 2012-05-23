@@ -1,4 +1,3 @@
-
 /************************************************************************
 
    PicoHarp 300			File Access Demo in C
@@ -178,16 +177,20 @@ int main(int argc, char* argv[])
  int64_t time=0, ofltime0=0, ofltime=0, ref_time=0, rupt_time=0, dt=0;
  unsigned int markers;
  
+ //my pars
+ int progressNumMax = 75;
+ int ascii=219;
+ 
  clock_t start, end;
  
  //histogram part and default values
- int k,precision=100,max,weigth=1;
+ int k,divider=100,max,weight=1;
  int width_ns=50;	// ns
  double width;
  	  width = (double)width_ns*1e-9;
  int Num=200, center;	// #histogram blogs
      center=((int)Num/2);
- int *heigth;
+ int *height;
  
  	
  	
@@ -207,18 +210,18 @@ int main(int argc, char* argv[])
  fscanf(fppars,"%d",&Num);
  	printf("\t Num : %d\n",Num);
     center=((int)Num/2);
- fscanf(fppars,"\nprecision : ");
- fscanf(fppars,"%d",&precision);
- 	printf("\t precision : %d\n",precision);
-    max=((int)(TTTRHdr.Records/precision));
+ fscanf(fppars,"\ndivider of Records : ");
+ fscanf(fppars,"%d",&divider);
+ 	printf("\t divider of Records : %d\n",divider);
+    max=((int)(TTTRHdr.Records/divider));
  fscanf(fppars,"\nweigth between 1 and 0 (#1/#0) : ");
- fscanf(fppars,"%d",&weigth);
-    printf("\t weigth : %d",weigth);
+ fscanf(fppars,"%d",&weight);
+    printf("\t weigth : %d",weight);
  fclose(fppars);
  
- heigth = (int*)calloc(sizeof(int),Num);
+ height = (int*)calloc(sizeof(int),Num);
  for(i=0;i<Num;i++)
- 	heigth[i]=0;
+ 	height[i]=0;
  
  
  //printf("\nPicoHarp T2 Mode File Demo");
@@ -261,7 +264,9 @@ int main(int argc, char* argv[])
 /* Now read and interpret the TTTR records */           
 
  printf("\nprocessing..\n");
-
+ printf("[");for(k=0;k<progressNumMax+1;k++) printf(".");printf("]"); // for progress bar
+ for(k=0;k<progressNumMax+2;k++) printf("\b");
+ 
  //start histogram method for correlation profiling
  
  
@@ -269,17 +274,23 @@ int main(int argc, char* argv[])
  //fprintf(fpout,"\nrecord# chan   rawtime      time/4ps   time/sec\n");
 
  //printf("%d\n",TTTRHdr.Records);
- max=((int)(TTTRHdr.Records/precision));
- //printf("%d\n",max);
- //getchar();
+ max=((int)(TTTRHdr.Records/divider));
+
  start = clock();
+ 
  for(i=0;i<(max);i++)
  {
-	if(i%((int)(max/10))==0) printf("\n...%2d",i/(max/100));
-	result = fread( &Record, 1, sizeof(Record) ,fpin);
+	//progress report
+    //if(i%((int)(max/10))==0) printf("\n...%2d",i/(max/100)); //old progress report
+	if(i%(max/progressNumMax)==0) printf("%c",ascii);
+	
+	
+	// END progress report
+    
+    result = fread( &Record, 1, sizeof(Record) ,fpin);
 	if (result!= sizeof(Record))
 	{
-		printf("\nUnexpected end of input file!");
+		printf("\n\nUnexpected end of input file!");
 		break;
 	}
 
@@ -330,7 +341,7 @@ int main(int argc, char* argv[])
 		fseek(fpin,result,SEEK_SET);
 		//printf("\nftell1 = %ld",ftell(fpin));
 
-		for(k=0;k<(weigth*max);k++)
+		for(k=0;k<(weight*max);k++)
 		{
 			//printf("k = %d\n",k);
 			result = fread( &Record, 1, sizeof(Record) ,fpin);
@@ -384,13 +395,13 @@ int main(int argc, char* argv[])
                 for(j=0;j<Num;j++)
 				{
 					if ((((double)dt*RESOL) > (((double)(j-center))*width)) && (((double)dt*RESOL) < (((double)j+1-center)*width)))
-						heigth[j]++;
+						height[j]++;
 					else
 						continue; 
 				}*/
 				
 				j = (int)floor((dt*RESOL)/width);
-                heigth[j+center]++;
+                height[j+center]++;
 				
 			}
 			else
@@ -411,12 +422,13 @@ int main(int argc, char* argv[])
 
 	/*fprintf(fpout,"  %1u %12u %12lld %14.12lf\n",Record.bits.channel,Record.bits.time,time,(double)(time*RESOL));*/
  }
+ printf("]\n\n"); // END progress bar
 
 //print section
  fprintf(fpout,"parameters\n\tblog width = %14.12lf (s)\n\tNumber of blogs = %d\n",width,Num);
  for(k=0;k<Num;k++)
  {
- 	fprintf(fpout,"\n%14.12lf\t%12d",((double)(k-center)*width),heigth[k]);
+ 	fprintf(fpout,"\n%14.12lf\t%12d",((double)(k-center)*width),height[k]);
  }
 
 close:
@@ -424,8 +436,8 @@ close:
  fclose(fpout);
 ex:
  end = clock();
- printf("time usage = %.2f(sec), %.2f(min)\n",(end-start)/(double)CLOCKS_PER_SEC,(end-start)/(double)CLOCKS_PER_SEC/60.);
- printf("\npress return to exit");
+ printf("time usage = %.2f(sec), %.2f(min)\n\n",(end-start)/(double)CLOCKS_PER_SEC,(end-start)/(double)CLOCKS_PER_SEC/60.);
+ //printf("\npress return to exit");
  //getchar();
  return(0);
 }
